@@ -15,23 +15,41 @@ def load_csv(url):
 
 df = load_csv(csv_url)
 
-# Получаем параметр из URL (если человек зашел по ссылке с фильтром)
+# Получаем параметр из URL (если переход по ссылке)
 url_room_param = st.query_params.get("room", None)
 if url_room_param:
     room_default = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
+    show_input = False
 else:
     room_default = ""
+    show_input = True
 
-# Если пользователь зашел по ссылке с фильтром — не показываем поле ввода и QR
-if url_room_param:
-    room = room_default
-else:
-    room = st.text_input("Введите номер комнаты для поиска", value=room_default)
+# ----- КНОПКА СБРОСА ------
+reset = False
+if not show_input:
+    # при переходе по ссылке с фильтром — покажем кнопку
+    reset = st.button("Показать все комнаты")
+    if reset:
+        # Очищаем фильтр из query_params и перезапускаем страницу
+        st.query_params.clear()
+        st.experimental_rerun()
+
+# ----- ПОЛЕ ДЛЯ ВВОДА ФИЛЬТРА -----
+if show_input:
+    col1, col2 = st.columns([4,1])
+    with col1:
+        room = st.text_input("Введите номер комнаты для поиска", value=room_default)
+    with col2:
+        if st.button("Сбросить фильтр"):
+            st.query_params.clear()
+            st.experimental_rerun()
     st.query_params["room"] = room
+else:
+    room = room_default
 
-# Фильтрация данных
-if room:
-    filtered_df = df[df["Room"].astype(str).str.contains(room, case=False)]
+# ---- ФИЛЬТРУЕМ ТОЛЬКО ПО ТОЧНОМУ СОВПАДЕНИЮ ----
+if room.strip():
+    filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
     st.markdown(
         f'<div style="font-size:20px; font-weight:bold;">'
@@ -47,7 +65,7 @@ else:
 st.dataframe(filtered_df)
 
 # Показываем QR только если пользователь фильтрует самостоятельно, а не по ссылке
-if room and not url_room_param:
+if room and show_input:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
