@@ -26,11 +26,19 @@ if by_url:
     show_input = False
 else:
     show_input = True
-    room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms)
+    col1, col2 = st.columns([4,1])
+    with col1:
+        room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms)
+    with col2:
+        if st.button("Показать все комнаты"):
+            if "room" in st.query_params:
+                del st.query_params["room"]
+            # Не нужен rerun, т.к. удаление query-параметра обновляет страницу
+            room = ""
     # Если пользователь выбрал, записываем параметр в URL, иначе удаляем
     if room:
         st.query_params["room"] = room
-    elif "room" in st.query_params:
+    elif "room" in st.query_params:  # если перешли к пустому списку
         del st.query_params["room"]
 
 # Фильтрация
@@ -50,9 +58,7 @@ else:
 
 st.dataframe(filtered_df)
 
-# Кнопка "Показать все комнаты" — только если фильтр не активен (только на исходной, без выбора)
-# Теперь — кнопка вообще не выводится при отфильтрованном списке
-# QR — только при фильтрации через интерфейс
+# QR — только при самостоятельном выборе через интерфейс
 if room and show_input:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
