@@ -14,40 +14,28 @@ def load_csv(url):
     return pd.read_csv(url, encoding="utf-8")
 
 df = load_csv(csv_url)
-unique_rooms = sorted(df["Room"].unique())  # Все доступные номера комнат
+unique_rooms = sorted(df["Room"].unique())
 
-# Получаем параметр из URL (если переход по ссылке)
-url_room_param = st.query_params.get("room", None)
-if url_room_param:
-    room_default = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
+# Проверяем, есть ли фильтр в адресе
+url_room_param = st.query_params.get("room")
+by_url = url_room_param is not None
+
+# Логика для выбора комнаты
+if by_url:
+    # Защита от возможного списка при парсинге query_params
+    room = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
     show_input = False
 else:
-    room_default = ""
     show_input = True
+    room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms)
 
-# ----- КНОПКА СБРОСА ------
-reset = False
-if not show_input:
-    reset = st.button("Показать все комнаты")
-    if reset:
-        st.query_params.clear()
-        st.experimental_rerun()
-
-# ---- ВЫПАДАЮЩИЙ СПИСОК ------
-if show_input:
-    col1, col2 = st.columns([4,1])
-    with col1:
-        # Теперь user может выбрать только из существующих
-        room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms, index=(unique_rooms.index(room_default) + 1) if room_default in unique_rooms else 0)
-    with col2:
-        if st.button("Сбросить фильтр"):
-            st.query_params.clear()
-            st.experimental_rerun()
+    # Если пользователь выбрал, записываем параметр в URL, иначе удаляем
     if room:
         st.query_params["room"] = room
-else:
-    room = room_default
+    elif "room" in st.query_params:
+        del st.query_params["room"]
 
+# Фильтрация
 if room:
     filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
@@ -64,8 +52,14 @@ else:
 
 st.dataframe(filtered_df)
 
-# Показываем QR только если пользователь фильтрует самостоятельно, а не по ссылке
-if room and show_input:
+# Кнопка "Показать все комнаты" показывается только если фильтр был не из QR/URL и был выбран фильтр
+if not by_url and room:
+    if st.button("Показать все комнаты"):
+        if "room" in st.query_params:
+            del st.query_params["room"]
+
+# QR-код показываем только если фильтруют через интерфейс
+if not by_url and room:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
