@@ -1,30 +1,54 @@
 import streamlit as st
 import pandas as pd
+import qrcode
+from io import BytesIO
 
-st.title("Просмотр данных из Google Sheets")
+SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
+SHEET_NAME = "Snagging"
 
-# Вставьте сюда ваш Google Sheet ID!
-SHEET_ID = "ВСТАВЬТЕ_СВОЙ_ID_ТУТ"
+csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
-# Обычно первый лист называется 'Sheet1', но иногда по-другому
-SHEET_NAME = "Sheet1"  # при необходимости измените!
-
-URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
-
+# Загрузка таблицы
 @st.cache_data
-def load_data(url):
-    return pd.read_csv(url)
+def load_csv(url):
+    return pd.read_csv(url, encoding="utf-8")
 
-try:
-    df = load_data(URL)
-    st.dataframe(df)
-except Exception as e:
-    st.error("Не удалось загрузить таблицу. Проверьте правильность ID, имени листа и настройки доступа.")
-    st.text(str(e))
+df = load_csv(csv_url)
 
-# Фильтр: поиск по комнате (если есть поле Room)
-if 'Room' in df.columns:
-    room = st.text_input("Поиск по комнате")
-    if room:
-        result = df[df['Room'].astype(str).str.contains(room, case=False)]
-        st.write(result)
+# Вывод заголовка красиво
+st.markdown(
+    "<h1 style='text-align: center; color: #4F8BF9;'>Просмотр комнат</h1>",
+    unsafe_allow_html=True
+)
+
+# Фильтр по комнате
+room = st.text_input("Введите номер комнаты для поиска")
+filtered_df = df
+
+if room:
+    filtered_df = df[df["Room"].astype(str).str.contains(room, case=False)]
+    st.write(f"Результаты для комнаты: **{room}**")
+
+st.dataframe(filtered_df)
+
+# Генерация QR-кода
+if room:
+    # Получаем полный URL текущей страницы с фильтром (Streamlit поддерживает параметры ?room=)
+    base_url = st.experimental_get_query_params()
+    app_url = st.secrets["app_url"] if "app_url" in st.secrets else "https://share.streamlit.io/ashilovich/google/main/app.py"
+    qr_url = f"{app_url}?room={room}"
+
+    # Генерируем изображение QR-кода
+    qr = qrcode.QRCode(box_size=6, border=2)
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+
+    st.markdown("**Поделиться этой комнатой:**")
+    st.image(buffered.getvalue(), caption="QR-код для ссылки")
+    st.write(f"[Ссылка на поиск этой комнаты]({qr_url})")
+
+    # Можно также автоматически устанавливать параметр в адресной строке
+    st.experimental_set_query_params(room=room)
