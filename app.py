@@ -29,11 +29,13 @@ else:
     col1, col2 = st.columns([4,1])
     with col1:
         room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms, key="room_select")
-    with col2:
-        if room and st.button("Показать все комнаты"):
-            # Сброс: очищаем параметры и перезапускаем
-            st.query_params.clear()
-            st.experimental_rerun()
+   with col2:
+    if room and st.button("Показать все комнаты"):
+        # Сброс фильтрации
+        st.query_params.clear()
+        room = ""  # Очистка переменной фильтрации
+        st.experimental_rerun()
+
     # Если пользователь выбрал комнату — записываем параметр в URL
     if room:
         st.query_params["room"] = room
