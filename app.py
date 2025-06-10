@@ -15,76 +15,76 @@ def load_csv(url):
 df = load_csv(csv_url)
 unique_rooms = sorted(df["Room"].unique())
 
-# Получаем параметр из url, если есть
 room_param = st.query_params.get("room")
+# ---------------------------------
+# --- **КНОПКА СБРОСА ФИЛЬТРА** ---
+# ---------------------------------
+if "clear_filter" not in st.session_state:
+    st.session_state["clear_filter"] = False
 
-# 1-й запуск: если в параметрах url уже есть room, фиксируем его в session_state
-if room_param and "room_select" not in st.session_state:
-    st.session_state["room_select"] = (
-        room_param if isinstance(room_param, str) else room_param[0]
-    )
-elif "room_select" not in st.session_state:
+# При нажатии кнопки: очищаем фильтр, query params и session_state, делаем rerun
+def clear_filter():
     st.session_state["room_select"] = ""
+    st.session_state["clear_filter"] = True
+    if "room" in st.query_params:
+        del st.query_params["room"]
+    st.experimental_rerun()
 
-# (1) Если страница была открыта по QR/ссылке - заблокируйте selectbox и уберите кнопку сброса
+# ------------------------------------------
+# --------- ОСНОВНОЙ ФИЛЬТР UI -------------
+# ------------------------------------------
 from_url = room_param is not None
 
-if not from_url:
-    col1, col2 = st.columns([4, 1])
+if from_url:
+    current_room = room_param if isinstance(room_param, str) else room_param[0]
+    # показываем просто результат, без фильтров/кнопок
+    show_filter_ui = False
+else:
+    show_filter_ui = True
+    if "room_select" not in st.session_state or st.session_state["clear_filter"]:
+        st.session_state["room_select"] = ""
+        st.session_state["clear_filter"] = False
+
+    col1, col2 = st.columns([4,1])
     with col1:
-        selected_room = st.selectbox(
+        room_choose = st.selectbox(
             "Выберите номер комнаты для поиска",
             [""] + unique_rooms,
-            index=([""] + unique_rooms).index(
-                st.session_state["room_select"]
-            )
-            if st.session_state["room_select"] in unique_rooms
-            else 0,
-            key="room_select",
+            key="room_select"
         )
     with col2:
-        if st.session_state["room_select"]:  # Кнопка только при фильтре
-            if st.button("Показать все комнаты"):
-                st.session_state["room_select"] = ""
-                if "room" in st.query_params:
-                    del st.query_params["room"]
-                st.experimental_rerun()
-    # — Обновлять query_params только когда выбран не пустой фильтр!
-    if st.session_state["room_select"]:
-        st.query_params["room"] = st.session_state["room_select"]
-    elif "room" in st.query_params:  # без фильтра — очистка url
+        # Кнопка сброса появляется, только если что-то выбрано
+        if st.session_state["room_select"]:
+            st.button("Показать все комнаты", on_click=clear_filter)
+    current_room = st.session_state["room_select"]
+    # Синхронизируем URL параметр (для QR/ссылки), если выбран фильтр
+    if current_room:
+        st.query_params["room"] = current_room
+    elif "room" in st.query_params:
         del st.query_params["room"]
 
-    room = st.session_state["room_select"]
-else:
-    room = (
-        room_param if isinstance(room_param, str) else room_param[0]
-    )  # только из url!
-
-# === ФИЛЬТРАЦИЯ ===
-if room:
-    filtered_df = df[
-        df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()
-    ]
+# ----------------------
+# --- ФИЛЬТРАЦИЯ -------
+# ----------------------
+if current_room:
+    filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == current_room.strip().lower()]
     num_remarks = len(filtered_df)
     st.markdown(
         f'<div style="font-size:20px; font-weight:bold;">'
-        f'Результаты для комнаты: <span style="color:#3766bf;">{room}</span></div>',
-        unsafe_allow_html=True,
-    )
+        f'Результаты для комнаты: <span style="color:#3766bf;">{current_room}</span></div>',
+        unsafe_allow_html=True)
     st.markdown(
         f'<div style="font-size:18px; margin-bottom:8px;">'
         f'Количество замечаний: <span style="color:#d02d2d;">{num_remarks}</span></div>',
-        unsafe_allow_html=True,
-    )
+        unsafe_allow_html=True)
 else:
     filtered_df = df
 
 st.dataframe(filtered_df)
 
-# QR — только на ручной выбор через интерфейс (и не при старте по url)
-if room and not from_url:
-    qr_url = f"{APP_URL}?room={room}"
+# QR и ссылка только при ручном выборе через фильтр
+if current_room and show_filter_ui:
+    qr_url = f"{APP_URL}?room={current_room}"
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
     qr.make(fit=True)
@@ -93,7 +93,4 @@ if room and not from_url:
     img.save(buffered, format="PNG")
     st.markdown("**Поделиться этой комнатой:**")
     st.image(buffered.getvalue(), caption="QR-код для ссылки")
-    st.markdown(
-        f'<a href="{qr_url}" target="_blank">Ссылка на поиск этой комнаты</a>',
-        unsafe_allow_html=True
-    )
+    st.markdown(f'<a href="{qr_url}" target="_blank">Ссылка на поиск этой комнаты</a>', unsafe_allow_html=True)
