@@ -5,7 +5,7 @@ from io import BytesIO
 
 SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
 SHEET_NAME = "Snagging"
-APP_URL = "https://ashilovich-google.streamlit.app/"  # <-- ЗАПОЛНИ здесь свой адрес!
+APP_URL = "https://app-pvzv5rbkywwukbndmjmjvk.streamlit.app/"  # <-- ЗАПОЛНИ здесь свой адрес!
 
 csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
