@@ -19,7 +19,6 @@ def clean_df(df):
     return df.reset_index(drop=True)
 
 df = clean_df(load_csv(csv_url))
-
 unique_rooms = sorted(df["Room"].dropna().unique())
 room_param = st.query_params.get("room", "")
 
@@ -76,9 +75,8 @@ else:
 filtered_df = clean_df(filtered_df)
 st.dataframe(filtered_df)
 
-# === АНАЛИТИКА: ТОЛЬКО при переходе по ссылке ===
+# === ТОП-10 только, без аналитики по этажам ===
 if from_url:
-    # ТОП‑10 комнат с наибольшим количеством замечаний
     st.markdown("### ТОП‑10 комнат по количеству замечаний")
     top10_rooms = (
         df.groupby('Room')
@@ -87,17 +85,18 @@ if from_url:
         .sort_values('Количество замечаний', ascending=False)
         .head(10)
     )
-    st.dataframe(top10_rooms.reset_index(drop=True))
+    # Вычисляем итог ТОП-10
+    top10_sum = int(top10_rooms['Количество замечаний'].sum())
 
-    # Итоговое количество замечаний (по всему DataFrame)
-    st.markdown(
-        f"**Общее количество всех замечаний:** <span style='color:#d02d2d;font-size:20px'>{df.shape[0]}</span>",
-        unsafe_allow_html=True
-    )
+    # Собираем итоговую строку
+    total_row = pd.DataFrame([["ИТОГО", top10_sum]], columns=top10_rooms.columns)
+    top10_display = pd.concat([top10_rooms, total_row], ignore_index=True)
+
+    st.dataframe(top10_display.reset_index(drop=True), use_container_width=True)
 
 # QR‑код только при ручном выборе
 if room and show_filter_ui:
-    qr_url = f"{APP_URL}?room={room}"
+    qr_url = f"{APP_URL}?room={room}"  # Ссылка только на комнату!
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
     qr.make(fit=True)
