@@ -26,7 +26,7 @@ if "room_select" not in st.session_state:
 def reset_filter():
     st.session_state["room_select"] = ""
     st.query_params.clear()
-    st.experimental_rerun()
+    st.rerun()  # Убедись, что версия Streamlit поддерживает этот метод
 
 col1, col2 = st.columns([4, 1])
 with col1:
