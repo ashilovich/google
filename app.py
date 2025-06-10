@@ -20,27 +20,27 @@ unique_rooms = sorted(df["Room"].unique())
 url_room_param = st.query_params.get("room", None)
 by_url = url_room_param is not None
 
-# ===== ЛОГИКА ВЫБОРА КОМНАТЫ =====
+# ===== ВЫБОР КОМНАТЫ =====
 if by_url:
     room = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
     show_input = False
 else:
     show_input = True
-    room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms)
-    # Кнопка "Показать все комнаты" появляется только, если выбрана комната (room не пустой)
-    if room:
-        # Сохраняем фильтр в параметрах
-        st.query_params["room"] = room
-        # Показываем кнопку только если не через url и комната выбрана
-        if st.button("Показать все комнаты"):
-            if "room" in st.query_params:
-                del st.query_params["room"]
-            # Очищаем выбор
+    col1, col2 = st.columns([4,1])
+    with col1:
+        room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms, key="room_select")
+    with col2:
+        if room and st.button("Показать все комнаты"):
+            # Сброс: очищаем параметры и перезапускаем
+            st.query_params.clear()
             st.experimental_rerun()
+    # Если пользователь выбрал комнату — записываем параметр в URL
+    if room:
+        st.query_params["room"] = room
     elif "room" in st.query_params:
         del st.query_params["room"]
 
-# ===== ФИЛЬТРАЦИЯ =====
+# ====== ФИЛЬТРАЦИЯ =======
 if room:
     filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
@@ -57,7 +57,7 @@ else:
 
 st.dataframe(filtered_df)
 
-# ===== QR-код только при ручном выборе =====
+# QR-код и ссылка — только при самостоятельном выборе через selectbox
 if room and show_input:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
@@ -68,4 +68,5 @@ if room and show_input:
     img.save(buffered, format="PNG")
     st.markdown("**Поделиться этой комнатой:**")
     st.image(buffered.getvalue(), caption="QR-код для ссылки")
-    st.write(f"[Ссылка на поиск этой комнаты]({qr_url})")
+    # ССЫЛКА ОТКРЫВАЕТСЯ В НОВОЙ ВКЛАДКЕ!
+    st.markdown(f'<a href="{qr_url}" target="_blank">Ссылка на поиск этой комнаты</a>', unsafe_allow_html=True)
