@@ -12,11 +12,20 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:cs
 def load_csv(url):
     return pd.read_csv(url, encoding="utf-8")
 
+# КНОПКА РУЧНОГО ОБНОВЛЕНИЯ
+if st.button("Обновить таблицу"):
+    load_csv.clear()
+    st.rerun()
+
 df = load_csv(csv_url)
+# Удаляем технические столбцы и сбрасываем индекс
+if 'Unnamed: 0' in df.columns:
+    df = df.drop(columns=['Unnamed: 0'])
+df = df.reset_index(drop=True)
+
 unique_rooms = sorted(df["Room"].dropna().unique())
 room_param = st.query_params.get("room", "")
 
-# Управление session_state
 if "room_select" not in st.session_state:
     st.session_state["room_select"] = room_param if room_param else ""
 
@@ -41,7 +50,6 @@ if show_filter_ui:
     with col2:
         if st.session_state["room_select"]:
             st.button("Показать все комнаты", on_click=clear_filter)
-
     if st.session_state["room_select"]:
         st.query_params["room"] = st.session_state["room_select"]
     elif "room" in st.query_params:
@@ -50,7 +58,6 @@ if show_filter_ui:
 else:
     room = room_param
 
-# Фильтрация
 if room:
     filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
@@ -65,8 +72,7 @@ if room:
 else:
     filtered_df = df
 
-# Убираем столбец индекса!
-st.dataframe(filtered_df.reset_index(drop=True))
+st.dataframe(filtered_df)  # Индексный столбец исчез!
 
 if room and show_filter_ui:
     qr_url = f"{APP_URL}?room={room}"
@@ -79,4 +85,3 @@ if room and show_filter_ui:
     st.markdown("**Поделиться этой комнатой:**")
     st.image(buffered.getvalue(), caption="QR-код для ссылки")
     st.markdown(f'<a href="{qr_url}" target="_blank">Ссылка на поиск этой комнаты</a>', unsafe_allow_html=True)
-    
