@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import qrcode
 from io import BytesIO
+import re
 
 SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
 SHEET_NAME = "Snagging"
@@ -12,16 +13,14 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:cs
 def load_csv(url):
     return pd.read_csv(url, encoding="utf-8")
 
-# КНОПКА РУЧНОГО ОБНОВЛЕНИЯ
-if st.button("Обновить таблицу"):
-    load_csv.clear()
-    st.rerun()
-
 df = load_csv(csv_url)
-# Удаляем технические столбцы и сбрасываем индекс
-if 'Unnamed: 0' in df.columns:
-    df = df.drop(columns=['Unnamed: 0'])
+
+# удаляем любые "Unnamed" столбцы и сбрасываем индекс
+df = df.loc[:, ~df.columns.str.match('^Unnamed')]
 df = df.reset_index(drop=True)
+# убираем ещё раз если был явно индексный столбец
+if '' in df.columns:
+    df = df.drop(columns=[''])
 
 unique_rooms = sorted(df["Room"].dropna().unique())
 room_param = st.query_params.get("room", "")
@@ -38,6 +37,10 @@ from_url = bool(room_param)
 show_filter_ui = not from_url
 
 if show_filter_ui:
+    # Показываем кнопку обновления только здесь!
+    if st.button("Обновить таблицу"):
+        load_csv.clear()
+        st.rerun()
     col1, col2 = st.columns([4, 1])
     with col1:
         selected_room = st.selectbox(
@@ -58,6 +61,7 @@ if show_filter_ui:
 else:
     room = room_param
 
+# ---- Фильтрация по комнате ----
 if room:
     filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
@@ -72,8 +76,44 @@ if room:
 else:
     filtered_df = df
 
-st.dataframe(filtered_df)  # Индексный столбец исчез!
+st.dataframe(filtered_df)
 
+# ======= АНАЛИТИКА ДЛЯ ПЕРЕХОДА ПО ССЫЛКЕ ========
+if from_url and room and not filtered_df.empty:
+    # 1. Этаж (B01-C-17 --> B01)
+    match = re.match(r'^([^\s-]+)', str(room).strip())
+    floor = match.group(1) if match else ""
+    st.markdown(f"### Аналитика по этажу: **{floor}**")
+
+    # 2. Подсчёт по комнатам этого этажа
+    by_floor = df[df['Room'].astype(str).str.startswith(floor)]
+    counts_by_room = (
+        by_floor.groupby('Room')
+        .size()
+        .reset_index(name='Количество замечаний')
+        .sort_values('Количество замечаний', ascending=False)
+    )
+    st.markdown("**Замечания по всем комнатам этажа:**")
+    st.dataframe(counts_by_room.reset_index(drop=True))
+    st.markdown(
+        f"<div style='font-size:16px;margin:4px 0;'>"
+        f"<b>Итого замечаний на этаже {floor}: </b>"
+        f"<span style='color:#d02d2d;font-size:19px;'>{by_floor.shape[0]}</span></div>",
+        unsafe_allow_html=True
+    )
+
+    # 3. Топ-10 комнат всего дома с наибольшим количеством замечаний
+    top10_rooms = (
+        df.groupby('Room')
+        .size()
+        .reset_index(name='Количество замечаний')
+        .sort_values('Количество замечаний', ascending=False)
+        .head(10)
+    )
+    st.markdown("### ТОП‑10 комнат с наибольшим числом замечаний:")
+    st.dataframe(top10_rooms.reset_index(drop=True))
+
+# ======= QR‑код только при ручном выборе =======
 if room and show_filter_ui:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
@@ -84,4 +124,7 @@ if room and show_filter_ui:
     img.save(buffered, format="PNG")
     st.markdown("**Поделиться этой комнатой:**")
     st.image(buffered.getvalue(), caption="QR-код для ссылки")
-    st.markdown(f'<a href="{qr_url}" target="_blank">Ссылка на поиск этой комнаты</a>', unsafe_allow_html=True)
+    st.markdown(
+        f'<a href="{qr_url}" target="_blank">Ссылка на поиск этой комнаты</a>',
+        unsafe_allow_html=True
+    )
