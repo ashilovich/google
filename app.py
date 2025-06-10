@@ -15,28 +15,31 @@ def load_csv(url):
 
 df = load_csv(csv_url)
 
-# Проверь, что колонка Room реально есть! Если не "Room" — укажи правильное название
-st.write("Колонки в таблице:", list(df.columns))
-
-room_default = st.query_params.get("room", None)
-if room_default:
-    room_default = room_default if isinstance(room_default, str) else room_default[0]
+# Получаем параметр из URL (если человек зашел по ссылке с фильтром)
+url_room_param = st.query_params.get("room", None)
+if url_room_param:
+    # Стримлит может возвращать либо строку, либо список – берем строку
+    room_default = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
 else:
     room_default = ""
 
+# Поле для ручного поиска
 room = st.text_input("Введите номер комнаты для поиска", value=room_default)
+# Сохраняем параметр в адресной строке
 st.query_params["room"] = room
 
-filtered_df = df
+# Фильтрация данных
 if room:
     filtered_df = df[df["Room"].astype(str).str.contains(room, case=False)]
     st.write(f"Результаты для комнаты: **{room}**")
+else:
+    filtered_df = df
 
 st.dataframe(filtered_df)
 
-if room:
+# Показываем QR только если пользователь фильтрует самостоятельно, а не по ссылке
+if room and not url_room_param:
     qr_url = f"{APP_URL}?room={room}"
-
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
     qr.make(fit=True)
