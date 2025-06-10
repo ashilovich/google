@@ -17,31 +17,30 @@ df = load_csv(csv_url)
 unique_rooms = sorted(df["Room"].unique())
 
 # Проверяем, есть ли фильтр в адресе
-url_room_param = st.query_params.get("room")
+url_room_param = st.query_params.get("room", None)
 by_url = url_room_param is not None
 
-# Логика выбора комнаты
+# ===== ЛОГИКА ВЫБОРА КОМНАТЫ =====
 if by_url:
     room = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
     show_input = False
 else:
     show_input = True
-    col1, col2 = st.columns([4,1])
-    with col1:
-        room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms)
-    with col2:
+    room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms)
+    # Кнопка "Показать все комнаты" появляется только, если выбрана комната (room не пустой)
+    if room:
+        # Сохраняем фильтр в параметрах
+        st.query_params["room"] = room
+        # Показываем кнопку только если не через url и комната выбрана
         if st.button("Показать все комнаты"):
             if "room" in st.query_params:
                 del st.query_params["room"]
-            # Не нужен rerun, т.к. удаление query-параметра обновляет страницу
-            room = ""
-    # Если пользователь выбрал, записываем параметр в URL, иначе удаляем
-    if room:
-        st.query_params["room"] = room
-    elif "room" in st.query_params:  # если перешли к пустому списку
+            # Очищаем выбор
+            st.experimental_rerun()
+    elif "room" in st.query_params:
         del st.query_params["room"]
 
-# Фильтрация
+# ===== ФИЛЬТРАЦИЯ =====
 if room:
     filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
@@ -58,7 +57,7 @@ else:
 
 st.dataframe(filtered_df)
 
-# QR — только при самостоятельном выборе через интерфейс
+# ===== QR-код только при ручном выборе =====
 if room and show_input:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
