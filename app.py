@@ -14,6 +14,7 @@ def load_csv(url):
     return pd.read_csv(url, encoding="utf-8")
 
 df = load_csv(csv_url)
+unique_rooms = sorted(df["Room"].unique())  # Все доступные номера комнат
 
 # Получаем параметр из URL (если переход по ссылке)
 url_room_param = st.query_params.get("room", None)
@@ -27,28 +28,27 @@ else:
 # ----- КНОПКА СБРОСА ------
 reset = False
 if not show_input:
-    # при переходе по ссылке с фильтром — покажем кнопку
     reset = st.button("Показать все комнаты")
     if reset:
-        # Очищаем фильтр из query_params и перезапускаем страницу
         st.query_params.clear()
         st.experimental_rerun()
 
-# ----- ПОЛЕ ДЛЯ ВВОДА ФИЛЬТРА -----
+# ---- ВЫПАДАЮЩИЙ СПИСОК ------
 if show_input:
     col1, col2 = st.columns([4,1])
     with col1:
-        room = st.text_input("Введите номер комнаты для поиска", value=room_default)
+        # Теперь user может выбрать только из существующих
+        room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms, index=(unique_rooms.index(room_default) + 1) if room_default in unique_rooms else 0)
     with col2:
         if st.button("Сбросить фильтр"):
             st.query_params.clear()
             st.experimental_rerun()
-    st.query_params["room"] = room
+    if room:
+        st.query_params["room"] = room
 else:
     room = room_default
 
-# ---- ФИЛЬТРУЕМ ТОЛЬКО ПО ТОЧНОМУ СОВПАДЕНИЮ ----
-if room.strip():
+if room:
     filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
     st.markdown(
@@ -73,7 +73,6 @@ if room and show_input:
     img = qr.make_image(fill_color="black", back_color="white")
     buffered = BytesIO()
     img.save(buffered, format="PNG")
-
     st.markdown("**Поделиться этой комнатой:**")
     st.image(buffered.getvalue(), caption="QR-код для ссылки")
     st.write(f"[Ссылка на поиск этой комнаты]({qr_url})")
