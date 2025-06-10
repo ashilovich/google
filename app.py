@@ -73,9 +73,9 @@ else:
     filtered_df = df
 
 filtered_df = clean_df(filtered_df)
-st.dataframe(filtered_df)
+st.dataframe(filtered_df, use_container_width=True)
 
-# === ТОП-10 только, без аналитики по этажам ===
+# === ТОП-10 только, итог отдельной строкой ниже ===
 if from_url:
     st.markdown("### ТОП‑10 комнат по количеству замечаний")
     top10_rooms = (
@@ -85,14 +85,15 @@ if from_url:
         .sort_values('Количество замечаний', ascending=False)
         .head(10)
     )
-    # Вычисляем итог ТОП-10
-    top10_sum = int(top10_rooms['Количество замечаний'].sum())
+    st.table(top10_rooms.reset_index(drop=True))  # всегда открыто, без скролла!
 
-    # Собираем итоговую строку
-    total_row = pd.DataFrame([["ИТОГО", top10_sum]], columns=top10_rooms.columns)
-    top10_display = pd.concat([top10_rooms, total_row], ignore_index=True)
-
-    st.dataframe(top10_display.reset_index(drop=True), use_container_width=True)
+    # Итог по всем замечаниям где дата не пуста
+    total_remarks = df[df["DateSn"].notna() & (df["DateSn"].astype(str).str.strip() != '')].shape[0]
+    st.markdown(
+        f'<div style="font-size:20px; font-weight:bold; margin-top:16px;">'
+        f'Итого замечаний: <span style="color:#d02d2d;">{total_remarks}</span></div>',
+        unsafe_allow_html=True
+    )
 
 # QR‑код только при ручном выборе
 if room and show_filter_ui:
