@@ -26,8 +26,7 @@ def clear_filter():
     st.session_state["room_select"] = ""
     if "room" in st.query_params:
         del st.query_params["room"]
-    st.experimental_rerun()
-
+    st.rerun()
 # UI
 from_url = bool(room_param)
 show_filter_ui = not from_url
