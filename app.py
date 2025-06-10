@@ -20,15 +20,13 @@ unique_rooms = sorted(df["Room"].unique())
 url_room_param = st.query_params.get("room")
 by_url = url_room_param is not None
 
-# Логика для выбора комнаты
+# Логика выбора комнаты
 if by_url:
-    # Защита от возможного списка при парсинге query_params
     room = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
     show_input = False
 else:
     show_input = True
     room = st.selectbox("Выберите номер комнаты для поиска", [""] + unique_rooms)
-
     # Если пользователь выбрал, записываем параметр в URL, иначе удаляем
     if room:
         st.query_params["room"] = room
@@ -52,14 +50,10 @@ else:
 
 st.dataframe(filtered_df)
 
-# Кнопка "Показать все комнаты" показывается только если фильтр был не из QR/URL и был выбран фильтр
-if not by_url and room:
-    if st.button("Показать все комнаты"):
-        if "room" in st.query_params:
-            del st.query_params["room"]
-
-# QR-код показываем только если фильтруют через интерфейс
-if not by_url and room:
+# Кнопка "Показать все комнаты" — только если фильтр не активен (только на исходной, без выбора)
+# Теперь — кнопка вообще не выводится при отфильтрованном списке
+# QR — только при фильтрации через интерфейс
+if room and show_input:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
