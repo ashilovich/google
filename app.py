@@ -1,7 +1,14 @@
 import streamlit as st
 import pandas as pd
 
-st.title("Просмотр Google Sheets (публично)")
+st.markdown(
+    """
+    <h1 style='text-align: center; color: #4F8BF9; font-size: 2.8em; font-weight: bold;'>
+        Просмотр Google Sheets <span style="font-size:0.8em; color:#888;">(публично)</span>
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
 
 SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
 SHEET_NAME = "Snagging"
