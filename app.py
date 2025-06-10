@@ -36,8 +36,6 @@ st.dataframe(filtered_df)
 
 if room:
     qr_url = f"{APP_URL}?room={room}"
-    st.write("QR URL:", qr_url)
-    st.write("Тип QR URL:", type(qr_url))
 
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
