@@ -85,10 +85,32 @@ if from_url:
         .sort_values('Количество замечаний', ascending=False)
         .head(10)
     )
-    st.table(top10_rooms.reset_index(drop=True))  # всегда открыто, без скролла!
+    st.table(top10_rooms.reset_index(drop=True))  # без скролла
 
-    # Итог по всем замечаниям где дата не пуста
-    total_remarks = df[df["DateSn"].notna() & (df["DateSn"].astype(str).str.strip() != '')].shape[0]
+    # --- Раздел: количество замечаний по месяцам ---
+    st.markdown("### Количество замечаний по месяцам")
+    # Преобразуем столбец даты (ожидаем dd.mm.yy или yyyy-mm-dd)
+    df_dates = df[df["DateSn"].notna() & (df["DateSn"].astype(str).str.strip() != '')].copy()
+    # Заменяем точки на дефисы и обрабатываем оба формата
+    df_dates["DateSn_parsed"] = pd.to_datetime(
+        df_dates["DateSn"].str.replace('.', '-', regex=False),
+        errors='coerce',
+        dayfirst=True
+    )
+    # Оставим только записи с успешно спарсенной датой  
+    df_dates = df_dates[df_dates["DateSn_parsed"].notna()]
+    # Группируем по месяцу-году
+    df_dates["Месяц"] = df_dates["DateSn_parsed"].dt.strftime('%Y-%m')
+    remarks_by_month = (
+        df_dates.groupby("Месяц")
+        .size()
+        .reset_index(name="Количество замечаний")
+        .sort_values("Месяц")
+    )
+    st.table(remarks_by_month)
+
+    # Итог всех замечаний с непустой корректной датой
+    total_remarks = df_dates.shape[0]
     st.markdown(
         f'<div style="font-size:20px; font-weight:bold; margin-top:16px;">'
         f'Итого замечаний: <span style="color:#d02d2d;">{total_remarks}</span></div>',
