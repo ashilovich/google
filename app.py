@@ -13,14 +13,20 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:cs
 def load_csv(url):
     return pd.read_csv(url, encoding="utf-8")
 
+# Загрузка и очистка данных
 df = load_csv(csv_url)
 
-# удаляем любые "Unnamed" столбцы и сбрасываем индекс
-df = df.loc[:, ~df.columns.str.match('^Unnamed')]
-df = df.reset_index(drop=True)
-# убираем ещё раз если был явно индексный столбец
-if '' in df.columns:
-    df = df.drop(columns=[''])
+# Удаляем лишние столбцы, если они появились
+def clean_df(df):
+    # Удаляем столбцы 'Unnamed: 0', '' (пустое имя), если есть
+    bad_cols = [col for col in df.columns if col.startswith('Unnamed') or col == '']
+    if bad_cols:
+        df = df.drop(columns=bad_cols)
+    # Сбрасываем индекс
+    df = df.reset_index(drop=True)
+    return df
+
+df = clean_df(df)
 
 unique_rooms = sorted(df["Room"].dropna().unique())
 room_param = st.query_params.get("room", "")
@@ -37,7 +43,7 @@ from_url = bool(room_param)
 show_filter_ui = not from_url
 
 if show_filter_ui:
-    # Показываем кнопку обновления только здесь!
+    # ——— КНОПКА обновления ———
     if st.button("Обновить таблицу"):
         load_csv.clear()
         st.rerun()
@@ -76,33 +82,14 @@ if room:
 else:
     filtered_df = df
 
+# Убираем столбец индекса на всякий случай
+filtered_df = clean_df(filtered_df)
 st.dataframe(filtered_df)
 
-# ======= АНАЛИТИКА ДЛЯ ПЕРЕХОДА ПО ССЫЛКЕ ========
-if from_url and room and not filtered_df.empty:
-    # 1. Этаж (B01-C-17 --> B01)
-    match = re.match(r'^([^\s-]+)', str(room).strip())
-    floor = match.group(1) if match else ""
-    st.markdown(f"### Аналитика по этажу: **{floor}**")
-
-    # 2. Подсчёт по комнатам этого этажа
-    by_floor = df[df['Room'].astype(str).str.startswith(floor)]
-    counts_by_room = (
-        by_floor.groupby('Room')
-        .size()
-        .reset_index(name='Количество замечаний')
-        .sort_values('Количество замечаний', ascending=False)
-    )
-    st.markdown("**Замечания по всем комнатам этажа:**")
-    st.dataframe(counts_by_room.reset_index(drop=True))
-    st.markdown(
-        f"<div style='font-size:16px;margin:4px 0;'>"
-        f"<b>Итого замечаний на этаже {floor}: </b>"
-        f"<span style='color:#d02d2d;font-size:19px;'>{by_floor.shape[0]}</span></div>",
-        unsafe_allow_html=True
-    )
-
-    # 3. Топ-10 комнат всего дома с наибольшим количеством замечаний
+# === АНАЛИТИКА: ТОЛЬКО при переходе по ссылке ===
+if from_url:
+    # TOP-10 комнат с наибольшим количеством замечаний (всегда по всем данным)
+    st.markdown("### ТОП‑10 комнат по количеству замечаний")
     top10_rooms = (
         df.groupby('Room')
         .size()
@@ -110,10 +97,47 @@ if from_url and room and not filtered_df.empty:
         .sort_values('Количество замечаний', ascending=False)
         .head(10)
     )
-    st.markdown("### ТОП‑10 комнат с наибольшим числом замечаний:")
     st.dataframe(top10_rooms.reset_index(drop=True))
 
-# ======= QR‑код только при ручном выборе =======
+    # ЭТАЖ для выбранной комнаты (B01-B-02 -> B01)
+    floor_pattern = r"^([A-Za-z0-9]+)"
+    floor = ""
+    if room:
+        m = re.match(floor_pattern, room.strip())
+        floor = m.group(1) if m else ""
+    else:
+        floor = ""
+    
+    # Информация по этажам — 2 колонки (Этаж и Кол-во замечаний):
+    st.markdown("### Замечания по этажам")
+    df['Этаж'] = df['Room'].str.extract(floor_pattern)
+    floor_count = (
+        df.groupby('Этаж')
+        .size()
+        .reset_index(name='Количество замечаний')
+        .sort_values('Количество замечаний', ascending=False)
+    )
+    st.dataframe(floor_count.reset_index(drop=True))
+    
+    # Если фильтрована комната и этаж определен — подсчёт по этажу и итого
+    if floor:
+        st.markdown(
+            f"#### Итоги по этажу <span style='color:#3766bf;font-weight:bold;'>{floor}</span>:", 
+            unsafe_allow_html=True)
+        rooms_on_floor = df[df['Этаж'] == floor]
+        count_by_rooms = (
+            rooms_on_floor.groupby('Room')
+            .size()
+            .reset_index(name='Количество замечаний')
+            .sort_values('Количество замечаний', ascending=False)
+        )
+        st.dataframe(count_by_rooms.reset_index(drop=True))
+        st.markdown(
+            f"<b>Итого замечаний на этаже {floor}: <span style='color:#d02d2d;font-size:18px'>{rooms_on_floor.shape[0]}</span></b>",
+            unsafe_allow_html=True
+        )
+
+# QR‑код только при ручном выборе
 if room and show_filter_ui:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
