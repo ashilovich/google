@@ -13,21 +13,18 @@ def load_csv(url):
     return pd.read_csv(url, encoding="utf-8")
 
 df = load_csv(csv_url)
-unique_rooms = sorted(df["Room"].unique())
-
-# Получаем фильтр из URL если есть
+unique_rooms = sorted(df["Room"].dropna().unique())
 room_param = st.query_params.get("room", "")
 
+# Управление session_state
 if "room_select" not in st.session_state:
     st.session_state["room_select"] = room_param if room_param else ""
 
-# Логика сброса фильтра
 def clear_filter():
     st.session_state["room_select"] = ""
     if "room" in st.query_params:
         del st.query_params["room"]
-    st.rerun()
-# UI
+
 from_url = bool(room_param)
 show_filter_ui = not from_url
 
@@ -37,15 +34,14 @@ if show_filter_ui:
         selected_room = st.selectbox(
             "Выберите номер комнаты для поиска",
             [""] + unique_rooms,
-            index=([""] + unique_rooms).index(st.session_state["room_select"]) \
-                if st.session_state["room_select"] in unique_rooms else 0,
+            index=([""] + unique_rooms).index(st.session_state["room_select"])
+            if st.session_state["room_select"] in unique_rooms else 0,
             key="room_select"
         )
     with col2:
         if st.session_state["room_select"]:
             st.button("Показать все комнаты", on_click=clear_filter)
 
-    # Пишем в параметры для QR и ссылок
     if st.session_state["room_select"]:
         st.query_params["room"] = st.session_state["room_select"]
     elif "room" in st.query_params:
@@ -69,9 +65,9 @@ if room:
 else:
     filtered_df = df
 
-st.dataframe(filtered_df)
+# Убираем столбец индекса!
+st.dataframe(filtered_df.reset_index(drop=True))
 
-# QR код только при ручном выборе!
 if room and show_filter_ui:
     qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
@@ -83,3 +79,4 @@ if room and show_filter_ui:
     st.markdown("**Поделиться этой комнатой:**")
     st.image(buffered.getvalue(), caption="QR-код для ссылки")
     st.markdown(f'<a href="{qr_url}" target="_blank">Ссылка на поиск этой комнаты</a>', unsafe_allow_html=True)
+    
