@@ -5,6 +5,8 @@ from io import BytesIO
 
 SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
 SHEET_NAME = "Snagging"
+APP_URL = "https://ashilovich-google.streamlit.app/"  # <-- ЗАПОЛНИ здесь свой адрес!
+
 csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
 @st.cache_data
@@ -13,17 +15,13 @@ def load_csv(url):
 
 df = load_csv(csv_url)
 
-# СЧИТЫВАЕМ фильтр из строки браузера при заходе по ссылке (streamlit>=1.32)
 room_default = st.query_params.get("room", None)
 if room_default:
     room_default = room_default if isinstance(room_default, str) else room_default[0]
 else:
     room_default = ""
 
-# Текстовое поле с подстановкой из параметра
 room = st.text_input("Введите номер комнаты для поиска", value=room_default)
-
-# Устанавливаем query параметр при фильтрации через UI и обновляем ссылку
 st.query_params["room"] = room
 
 filtered_df = df
@@ -34,11 +32,8 @@ if room:
 st.dataframe(filtered_df)
 
 if room:
-    # Формируем адрес текущего приложения без query
-    app_url = st.secrets["app_url"] if "app_url" in st.secrets else st.request.url.split('?',1)[0]
-    qr_url = f"{app_url}?room={room}"
+    qr_url = f"{APP_URL}?room={room}"
 
-    # Генерируем QR
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
     qr.make(fit=True)
