@@ -1,33 +1,30 @@
 import streamlit as st
 import pandas as pd
 
-st.markdown(
-    """
-    <h1 style='text-align: center; color: #4F8BF9; font-size: 2.8em; font-weight: bold;'>
-        LIST ROOMS GHM<span style="font-size:0.8em; color:#888;"></span>
-    </h1>
-    """,
-    unsafe_allow_html=True
-)
+st.title("Просмотр данных из Google Sheets")
 
-SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
-SHEET_NAME = "Snagging"
+# Вставьте сюда ваш Google Sheet ID!
+SHEET_ID = "ВСТАВЬТЕ_СВОЙ_ID_ТУТ"
 
-csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
+# Обычно первый лист называется 'Sheet1', но иногда по-другому
+SHEET_NAME = "Sheet1"  # при необходимости измените!
+
+URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
 @st.cache_data
-def load_csv(url):
-    try:
-        return pd.read_csv(url, encoding="utf-8")
-    except UnicodeDecodeError:
-        return pd.read_csv(url, encoding="cp1251")
+def load_data(url):
+    return pd.read_csv(url)
 
 try:
-    df = load_csv(csv_url)
+    df = load_data(URL)
     st.dataframe(df)
-    if "Room" in df.columns:
-        room = st.text_input("Поиск по номеру комнаты")
-        if room:
-            st.write(df[df["Room"].astype(str).str.contains(room, case=False)])
 except Exception as e:
-    st.error("Ошибка загрузки данных: " + str(e))
+    st.error("Не удалось загрузить таблицу. Проверьте правильность ID, имени листа и настройки доступа.")
+    st.text(str(e))
+
+# Фильтр: поиск по комнате (если есть поле Room)
+if 'Room' in df.columns:
+    room = st.text_input("Поиск по комнате")
+    if room:
+        result = df[df['Room'].astype(str).str.contains(room, case=False)]
+        st.write(result)
