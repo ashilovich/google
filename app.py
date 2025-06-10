@@ -5,7 +5,7 @@ from io import BytesIO
 
 SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
 SHEET_NAME = "Snagging"
-APP_URL = "https://app-pvzv5rbkywwukbndmjmjvk.streamlit.app/"  # <-- ЗАПОЛНИ здесь свой адрес!
+APP_URL = "https://app-pvzv5rbkywwukbndmjmjvk.streamlit.app/"
 
 csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
@@ -14,6 +14,9 @@ def load_csv(url):
     return pd.read_csv(url, encoding="utf-8")
 
 df = load_csv(csv_url)
+
+# Проверь, что колонка Room реально есть! Если не "Room" — укажи правильное название
+st.write("Колонки в таблице:", list(df.columns))
 
 room_default = st.query_params.get("room", None)
 if room_default:
@@ -33,6 +36,8 @@ st.dataframe(filtered_df)
 
 if room:
     qr_url = f"{APP_URL}?room={room}"
+    st.write("QR URL:", qr_url)
+    st.write("Тип QR URL:", type(qr_url))
 
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
