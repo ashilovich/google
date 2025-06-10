@@ -18,20 +18,29 @@ df = load_csv(csv_url)
 # Получаем параметр из URL (если человек зашел по ссылке с фильтром)
 url_room_param = st.query_params.get("room", None)
 if url_room_param:
-    # Стримлит может возвращать либо строку, либо список – берем строку
     room_default = url_room_param if isinstance(url_room_param, str) else url_room_param[0]
 else:
     room_default = ""
 
-# Поле для ручного поиска
-room = st.text_input("Введите номер комнаты для поиска", value=room_default)
-# Сохраняем параметр в адресной строке
-st.query_params["room"] = room
+# Если пользователь зашел по ссылке с фильтром — не показываем поле ввода и QR
+if url_room_param:
+    room = room_default
+else:
+    room = st.text_input("Введите номер комнаты для поиска", value=room_default)
+    st.query_params["room"] = room
 
 # Фильтрация данных
 if room:
     filtered_df = df[df["Room"].astype(str).str.contains(room, case=False)]
-    st.write(f"Результаты для комнаты: **{room}**")
+    num_remarks = len(filtered_df)
+    st.markdown(
+        f'<div style="font-size:20px; font-weight:bold;">'
+        f'Результаты для комнаты: <span style="color:#3766bf;">{room}</span></div>',
+        unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-size:18px; margin-bottom:8px;">'
+        f'Количество замечаний: <span style="color:#d02d2d;">{num_remarks}</span></div>',
+        unsafe_allow_html=True)
 else:
     filtered_df = df
 
