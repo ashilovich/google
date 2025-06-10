@@ -4,7 +4,7 @@ import pandas as pd
 st.markdown(
     """
     <h1 style='text-align: center; color: #4F8BF9; font-size: 2.8em; font-weight: bold;'>
-        LIST ROOMS GHM <span style="font-size:0.8em; color:#888;">(публично)</span>
+        LIST ROOMS GHM <span style="font-size:0.8em; color:#888;"></span>
     </h1>
     """,
     unsafe_allow_html=True
