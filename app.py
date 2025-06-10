@@ -4,7 +4,7 @@ import qrcode
 from io import BytesIO
 
 SHEET_ID = "18HLTV6zdGRF_l6oZXxkO3LfDDPb92UrZVuFNbJFDVhc"
-SHEET_NAME = "Sheet1"
+SHEET_NAME = "Snagging"
 csv_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}"
 
 @st.cache_data
