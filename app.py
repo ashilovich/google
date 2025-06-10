@@ -15,63 +15,65 @@ def load_csv(url):
 df = load_csv(csv_url)
 unique_rooms = sorted(df["Room"].unique())
 
+# 1. Получаем фильтр из url
 room_param = st.query_params.get("room")
-# ---------------------------------
-# --- **КНОПКА СБРОСА ФИЛЬТРА** ---
-# ---------------------------------
-if "clear_filter" not in st.session_state:
-    st.session_state["clear_filter"] = False
+from_url = room_param is not None
+room_from_url = room_param if isinstance(room_param, str) or room_param is None else room_param[0]
 
-# При нажатии кнопки: очищаем фильтр, query params и session_state, делаем rerun
-def clear_filter():
+# 2. Управляем session_state для корректного сброса
+if "room_select" not in st.session_state:
+    # Если зашли по прямой ссылке — вставить значение в состояние
+    st.session_state["room_select"] = room_from_url or ""
+if "reset_box" not in st.session_state:
+    st.session_state["reset_box"] = False
+
+def reset_filter():
     st.session_state["room_select"] = ""
-    st.session_state["clear_filter"] = True
     if "room" in st.query_params:
         del st.query_params["room"]
+    st.session_state["reset_box"] = True  # Флаг для чистого сброса box!
     st.experimental_rerun()
 
-# ------------------------------------------
-# --------- ОСНОВНОЙ ФИЛЬТР UI -------------
-# ------------------------------------------
-from_url = room_param is not None
+show_filter_ui = not from_url
 
-if from_url:
-    current_room = room_param if isinstance(room_param, str) else room_param[0]
-    # показываем просто результат, без фильтров/кнопок
-    show_filter_ui = False
-else:
-    show_filter_ui = True
-    if "room_select" not in st.session_state or st.session_state["clear_filter"]:
-        st.session_state["room_select"] = ""
-        st.session_state["clear_filter"] = False
-
-    col1, col2 = st.columns([4,1])
+if show_filter_ui:
+    col1, col2 = st.columns([4, 1])
     with col1:
-        room_choose = st.selectbox(
+        # Принудительный сброс selectbox до пустого на reset_box=True
+        index = 0
+        if st.session_state["room_select"] in unique_rooms:
+            index = unique_rooms.index(st.session_state["room_select"]) + 1
+        # ВАЖНО: при reset_box=True всегда index=0!
+        if st.session_state["reset_box"]:
+            index = 0
+            st.session_state["reset_box"] = False  # Сброшено!
+        selected_room = st.selectbox(
             "Выберите номер комнаты для поиска",
             [""] + unique_rooms,
+            index=index,
             key="room_select"
         )
     with col2:
-        # Кнопка сброса появляется, только если что-то выбрано
         if st.session_state["room_select"]:
-            st.button("Показать все комнаты", on_click=clear_filter)
-    current_room = st.session_state["room_select"]
-    # Синхронизируем URL параметр (для QR/ссылки), если выбран фильтр
-    if current_room:
-        st.query_params["room"] = current_room
+            st.button("Показать все комнаты", on_click=reset_filter)
+
+    # Сохраняем фильтр в URL query params для QR/глубокой ссылки
+    if st.session_state["room_select"]:
+        st.query_params["room"] = st.session_state["room_select"]
     elif "room" in st.query_params:
         del st.query_params["room"]
 
-# ----------------------
-# --- ФИЛЬТРАЦИЯ -------
-# ----------------------
-if current_room:
-    filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == current_room.strip().lower()]
+    room = st.session_state["room_select"]
+else:
+    room = room_from_url
+
+# 3. Фильтрация
+if room:
+    filtered_df = df[df["Room"].astype(str).str.strip().str.lower() == room.strip().lower()]
     num_remarks = len(filtered_df)
     st.markdown(
         f'<div style="font-size:20px; font-weight:bold;">'
-        f'Результаты для комнаты: <span style="color:#3766bf;">{current_room}</span></div>',
+        f'Результаты для комнаты: <span style="color:#3766bf;">{room}</span></div>',
         unsafe_allow_html=True)
     st.markdown(
         f'<div style="font-size:18px; margin-bottom:8px;">'
@@ -82,9 +84,9 @@ else:
 
 st.dataframe(filtered_df)
 
-# QR и ссылка только при ручном выборе через фильтр
-if current_room and show_filter_ui:
-    qr_url = f"{APP_URL}?room={current_room}"
+# 4. QR и ссылка только при выборе комнат в UI
+if room and show_filter_ui:
+    qr_url = f"{APP_URL}?room={room}"
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(qr_url)
     qr.make(fit=True)
